@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>110班 自評互評表</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;700;900&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    
+    <style>
+        body { font-family: 'Zen Maru Gothic', sans-serif; background-color: #FFFDF5; }
+        select { -webkit-appearance: none; appearance: none; background-image: none; }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .loader { border: 3px solid #f3f3f3; border-top: 3px solid #666; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; }
+        
+        /* 列印專用樣式 */
+        @media print {
+            .no-print, .hide-on-capture { display: none !important; }
+            body { -webkit-print-color-adjust: exact; print-color-adjust: exact; background-color: white; }
+            .shadow-lg, .shadow-xl { box-shadow: none !important; border: 2px solid #ccc !important; }
+            
+            /* 強制移除鎖定與反白 */
+            .grayscale { filter: none !important; }
+            .opacity-60 { opacity: 1 !important; }
+            .opacity-70 { opacity: 1 !important; }
+            [id^="lock-"] { display: none !important; }
+            
+            /* 強制雙欄排版 */
+            #main-grid {
+                display: grid !important;
+                grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+                gap: 2rem !important;
+            }
+            #capture-area { width: 100% !important; max-width: none !important; }
+        }
+    </style>
+</head>
+<body class="pb-20 text-gray-800 selection:bg-yellow-200">
+
+    <!-- 進度條 (截圖時會被隱藏) -->
+    <div class="fixed top-0 left-0 w-full h-3 bg-gray-100 z-50 border-b-2 border-gray-200 hide-on-capture no-print">
+        <div id="progress-bar" class="h-full bg-gradient-to-r from-yellow-400 via-pink-400 to-cyan-400 transition-all duration-500 ease-out" style="width: 0%"></div>
+    </div>
+
+    <!-- 主要內容區 -->
+    <div id="capture-area" class="max-w-[1200px] mx-auto px-6 py-10 bg-[#FFFDF5]">
+        
+        <!-- 封面 Header -->
+        <div class="text-center mb-10 relative border-b-4 border-dashed border-gray-300 pb-8">
+            <div class="flex justify-center items-end gap-6 mb-4">
+                <svg class="w-20 h-20 animate-bounce" viewBox="0 0 100 100" style="animation-duration: 3s;">
+                    <path d="M50 20 Q90 20 90 60 Q90 90 50 90 Q10 90 10 60 Q10 20 50 20" fill="#A7F3F0" stroke="#0891B2" stroke-width="3"/>
+                    <path d="M50 15 L55 25 L45 25 Z" fill="#0891B2"/>
+                    <circle cx="35" cy="50" r="2" fill="#333"/><circle cx="65" cy="50" r="2" fill="#333"/><circle cx="50" cy="55" r="2" fill="#333"/>
+                </svg>
+                <h1 class="text-6xl font-black text-gray-800 tracking-widest px-4">自評互評表</h1>
+                <svg class="w-20 h-20 animate-bounce" viewBox="0 0 100 100" style="animation-duration: 2.5s;">
+                    <circle cx="20" cy="25" r="12" fill="white" stroke="#555" stroke-width="3"/>
+                    <circle cx="80" cy="25" r="12" fill="white" stroke="#555" stroke-width="3"/>
+                    <ellipse cx="50" cy="60" rx="40" ry="35" fill="white" stroke="#555" stroke-width="3"/>
+                    <circle cx="40" cy="50" r="2" fill="#333"/><circle cx="60" cy="50" r="2" fill="#333"/><ellipse cx="50" cy="55" rx="5" ry="3" fill="#333"/>
+                </svg>
+            </div>
+            <p class="text-gray-500 font-bold text-xl bg-white inline-block px-6 py-2 rounded-full border-2 border-gray-200">
+                ✨ 發現同學的優點，也看見自己的光芒 ✨
+            </p>
+            
+            <!-- 封面座號姓名 -->
+            <div class="flex justify-center gap-12 mt-8 text-2xl border-4 border-gray-800 rounded-3xl p-6 bg-white w-full md:w-2/3 mx-auto shadow-sm">
+                <div class="flex gap-2 items-end">
+                    <span class="font-bold text-gray-600 mb-3">座號：</span>
+                    <span id="cover-seat" class="border-b-4 border-black min-w-[100px] text-center font-mono font-black text-5xl pb-2 px-2 text-gray-800 leading-none" style="min-height: 60px; display: inline-block;"></span>
+                </div>
+                <div class="flex gap-2 items-end">
+                    <span class="font-bold text-gray-600 mb-3">姓名：</span>
+                    <span id="cover-name" class="border-b-4 border-black min-w-[200px] text-center font-black text-5xl pb-2 px-2 text-gray-800 leading-none" style="min-height: 60px; display: inline-block;"></span>
+                </div>
+            </div>
+        </div>
+
+        <!-- 表單區塊 -->
+        <div id="main-grid" class="grid grid-cols-1 md:grid-cols-2 gap-8">
+
+            <!-- 1. 自我評量 -->
+            <div id="card-self" class="p-8 rounded-[40px] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] border-4 border-yellow-400 bg-yellow-100 relative overflow-hidden h-full flex flex-col">
+                <div class="absolute -top-6 -right-6 w-48 h-48 opacity-30 pointer-events-none transform rotate-12">
+                    <svg viewBox="0 0 100 100"><path d="M20 50 Q20 20 50 20 Q80 20 80 50 Q80 85 50 85 Q20 85 20 50" fill="#FCD34D" stroke="#92400E" stroke-width="3" stroke-dasharray="3 2"/><circle cx="40" cy="50" r="2" fill="#333"/><circle cx="60" cy="50" r="2" fill="#333"/><path d="M48 52 Q50 55 52 52" stroke="#333" stroke-width="2" fill="none"/><path d="M50 20 Q60 10 70 20" fill="pink" opacity="0.8"/></svg>
+                </div>
+                <div class="relative z-10 flex-grow">
+                    <h2 class="text-3xl font-black mb-8 text-yellow-600 flex items-center gap-3 bg-white inline-block px-8 py-3 rounded-full border-2 border-yellow-400 shadow-sm">
+                        <span>🐷</span> 自我評量
+                    </h2>
+                    <div class="grid md:grid-cols-1 gap-6">
+                        <div class="mb-2">
+                            <label class="block text-xl font-bold mb-3 text-yellow-800">請選擇你的座號/姓名</label>
+                            <div id="display-name-self" class="block text-3xl font-black border-b-4 border-gray-800 pb-3 mb-3 min-h-[50px] text-gray-800 leading-normal">
+                                <span class="text-gray-400 text-lg font-normal">(請點選下方選單)</span>
+                            </div>
+                            <div class="relative hide-on-capture">
+                                <select id="select-student-self" class="block w-full bg-white border-2 border-yellow-400 px-4 py-3 rounded-2xl shadow-sm text-gray-700 text-xl font-bold cursor-pointer hover:bg-yellow-50 focus:ring-2 focus:ring-yellow-400">
+                                    <option value="">▼ 點此選擇你的名字...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 flex-grow">
+                            <label class="block text-xl font-bold mb-3 text-yellow-800">我覺得自己是個怎樣的人？</label>
+                            <div id="tags-container-self" class="flex flex-wrap gap-2 mb-3 min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-gray-400 content-start">
+                                <span class="text-gray-400 text-base py-2 px-1">請選擇或輸入評語...</span>
+                            </div>
+                            <div class="flex gap-2 hide-on-capture">
+                                <div class="relative flex-grow">
+                                    <select id="select-comment-self" class="block w-full bg-white border-2 border-yellow-400 px-4 py-2 rounded-xl text-gray-700 cursor-pointer h-14 text-lg font-bold">
+                                        <option value="">▼ 選擇形容詞...</option>
+                                    </select>
+                                </div>
+                                <div class="flex-grow flex gap-2">
+                                    <input type="text" id="input-custom-self" placeholder="自行輸入..." class="flex-grow border-2 border-yellow-400 rounded-xl px-4 h-14 text-lg">
+                                    <button id="btn-add-self" class="bg-yellow-400 text-white px-4 rounded-xl font-bold text-3xl h-14 shadow-sm hover:bg-yellow-500">+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. 互評 A -->
+            <div id="card-peer1" class="p-8 rounded-[40px] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] mb-8 border-4 border-cyan-400 bg-cyan-100 relative overflow-hidden grayscale opacity-60 h-full flex flex-col transition-all duration-300">
+                <div class="absolute -top-6 -right-6 w-48 h-48 opacity-30 pointer-events-none transform rotate-12">
+                    <svg viewBox="0 0 100 100"><path d="M50 20 Q90 20 90 60 Q90 90 50 90 Q10 90 10 60 Q10 20 50 20" fill="#A7F3F0" stroke="#0891B2" stroke-width="3"/><path d="M50 15 L55 25 L45 25 Z" fill="#0891B2"/><circle cx="35" cy="50" r="2" fill="#333"/><circle cx="65" cy="50" r="2" fill="#333"/><circle cx="50" cy="55" r="2" fill="#333"/></svg>
+                </div>
+                <div class="relative z-10 flex-grow">
+                    <h2 class="text-3xl font-black mb-8 text-cyan-600 flex items-center gap-3 bg-white inline-block px-8 py-3 rounded-full border-2 border-cyan-400 shadow-sm">
+                        <span>🦎</span> 同學互評 A
+                    </h2>
+                    <div id="lock-peer1" class="absolute inset-0 z-20 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-[30px]">
+                        <div class="bg-white px-6 py-3 rounded-full border-2 border-gray-300 font-bold text-gray-500 text-xl">請先完成上一區</div>
+                    </div>
+                    <div class="grid md:grid-cols-1 gap-6">
+                        <div class="mb-2">
+                            <label class="block text-xl font-bold mb-3 text-cyan-800">我要評的是...</label>
+                            <div id="display-name-peer1" class="block text-3xl font-black border-b-4 border-gray-800 pb-2 mb-3 min-h-[50px] text-gray-800 leading-normal"><span class="text-gray-400 text-lg font-normal">(未選擇)</span></div>
+                            <div class="relative hide-on-capture">
+                                <select id="select-student-peer1" class="block w-full bg-white border-2 border-cyan-400 px-4 py-3 rounded-2xl shadow-sm text-gray-700 text-xl font-bold cursor-pointer" disabled>
+                                    <option value="">▼ 選擇同學姓名...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 flex-grow">
+                            <label class="block text-xl font-bold mb-3 text-cyan-800">我覺得她...</label>
+                            <div id="tags-container-peer1" class="flex flex-wrap gap-2 mb-3 min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-gray-400 content-start">
+                                <span class="text-gray-400 text-base py-2 px-1">請選擇優點...</span>
+                            </div>
+                            <div class="flex gap-2 hide-on-capture">
+                                <div class="relative flex-grow">
+                                    <select id="select-comment-peer1" class="block w-full bg-white border-2 border-cyan-400 px-4 py-2 rounded-xl text-gray-700 cursor-pointer h-14 text-lg font-bold" disabled>
+                                        <option value="">▼ 選擇正向評語...</option>
+                                    </select>
+                                </div>
+                                <div class="flex-grow flex gap-2">
+                                    <input type="text" id="input-custom-peer1" placeholder="自行輸入..." class="flex-grow border-2 border-cyan-400 rounded-xl px-4 h-14 text-lg" disabled>
+                                    <button id="btn-add-peer1" class="bg-cyan-400 text-white px-4 rounded-xl font-bold text-3xl h-14 shadow-sm" disabled>+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 3. 互評 B -->
+            <div id="card-peer2" class="p-8 rounded-[40px] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] mb-8 border-4 border-rose-400 bg-rose-100 relative overflow-hidden grayscale opacity-60 h-full flex flex-col transition-all duration-300">
+                <div class="absolute -top-6 -right-6 w-48 h-48 opacity-30 pointer-events-none transform rotate-12">
+                    <svg viewBox="0 0 100 100"><circle cx="20" cy="25" r="12" fill="white" stroke="#555" stroke-width="3"/><circle cx="80" cy="25" r="12" fill="white" stroke="#555" stroke-width="3"/><ellipse cx="50" cy="60" rx="40" ry="35" fill="white" stroke="#555" stroke-width="3"/><circle cx="40" cy="50" r="2" fill="#333"/><circle cx="60" cy="50" r="2" fill="#333"/><ellipse cx="50" cy="55" rx="5" ry="3" fill="#333"/><path d="M40 70 Q50 80 60 70" stroke="#333" stroke-width="2" fill="none"/></svg>
+                </div>
+                <div class="relative z-10 flex-grow">
+                    <h2 class="text-3xl font-black mb-8 text-rose-600 flex items-center gap-3 bg-white inline-block px-8 py-3 rounded-full border-2 border-rose-400 shadow-sm">
+                        <span>🐻</span> 同學互評 B
+                    </h2>
+                    <div id="lock-peer2" class="absolute inset-0 z-20 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-[30px]">
+                        <div class="bg-white px-6 py-3 rounded-full border-2 border-gray-300 font-bold text-gray-500 text-xl">請先完成上一區</div>
+                    </div>
+                    <div class="grid md:grid-cols-1 gap-6">
+                        <div class="mb-2">
+                            <label class="block text-xl font-bold mb-3 text-rose-800">我要評的是...</label>
+                            <div id="display-name-peer2" class="block text-3xl font-black border-b-4 border-gray-800 pb-2 mb-3 min-h-[50px] text-gray-800 leading-normal"><span class="text-gray-400 text-lg font-normal">(未選擇)</span></div>
+                            <div class="relative hide-on-capture">
+                                <select id="select-student-peer2" class="block w-full bg-white border-2 border-rose-400 px-4 py-3 rounded-2xl shadow-sm text-gray-700 text-xl font-bold cursor-pointer" disabled>
+                                    <option value="">▼ 選擇同學姓名...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 flex-grow">
+                            <label class="block text-xl font-bold mb-3 text-rose-800">我覺得她...</label>
+                            <div id="tags-container-peer2" class="flex flex-wrap gap-2 mb-3 min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-gray-400 content-start">
+                                <span class="text-gray-400 text-base py-2 px-1">請選擇優點...</span>
+                            </div>
+                            <div class="flex gap-2 hide-on-capture">
+                                <div class="relative flex-grow">
+                                    <select id="select-comment-peer2" class="block w-full bg-white border-2 border-rose-400 px-4 py-2 rounded-xl text-gray-700 cursor-pointer h-14 text-lg font-bold" disabled>
+                                        <option value="">▼ 選擇正向評語...</option>
+                                    </select>
+                                </div>
+                                <div class="flex-grow flex gap-2">
+                                    <input type="text" id="input-custom-peer2" placeholder="自行輸入..." class="flex-grow border-2 border-rose-400 rounded-xl px-4 h-14 text-lg" disabled>
+                                    <button id="btn-add-peer2" class="bg-rose-400 text-white px-4 rounded-xl font-bold text-3xl h-14 shadow-sm" disabled>+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 4. 互評 C -->
+            <div id="card-peer3" class="p-8 rounded-[40px] shadow-[8px_8px_0px_0px_rgba(0,0,0,0.1)] mb-8 border-4 border-lime-400 bg-lime-100 relative overflow-hidden grayscale opacity-60 h-full flex flex-col transition-all duration-300">
+                <div class="absolute -top-6 -right-6 w-48 h-48 opacity-30 pointer-events-none transform rotate-12">
+                    <svg viewBox="0 0 100 100"><path d="M20 30 L30 60 L10 60 Z" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(-20 20 30)"/><path d="M80 30 L90 60 L70 60 Z" fill="#FDE68A" stroke="#B45309" stroke-width="3" transform="rotate(20 80 30)"/><ellipse cx="50" cy="60" rx="42" ry="35" fill="#FDE68A" stroke-width="3"/><path d="M20 60 Q30 60 40 50 L20 40" fill="#F59E0B" opacity="0.6"/><circle cx="35" cy="55" r="2" fill="#333"/><circle cx="65" cy="55" r="2" fill="#333"/><path d="M45 60 L50 65 L55 60" stroke="#333" stroke-width="2" fill="none"/></svg>
+                </div>
+                <div class="relative z-10 flex-grow">
+                    <h2 class="text-3xl font-black mb-8 text-lime-600 flex items-center gap-3 bg-white inline-block px-8 py-3 rounded-full border-2 border-lime-400 shadow-sm">
+                        <span>🐱</span> 同學互評 C
+                    </h2>
+                    <div id="lock-peer3" class="absolute inset-0 z-20 flex items-center justify-center bg-white/50 backdrop-blur-sm rounded-[30px]">
+                        <div class="bg-white px-6 py-3 rounded-full border-2 border-gray-300 font-bold text-gray-500 text-xl">請先完成上一區</div>
+                    </div>
+                    <div class="grid md:grid-cols-1 gap-6">
+                        <div class="mb-2">
+                            <label class="block text-xl font-bold mb-3 text-lime-800">我要評的是...</label>
+                            <div id="display-name-peer3" class="block text-3xl font-black border-b-4 border-gray-800 pb-2 mb-3 min-h-[50px] text-gray-800 leading-normal"><span class="text-gray-400 text-lg font-normal">(未選擇)</span></div>
+                            <div class="relative hide-on-capture">
+                                <select id="select-student-peer3" class="block w-full bg-white border-2 border-lime-400 px-4 py-3 rounded-2xl shadow-sm text-gray-700 text-xl font-bold cursor-pointer" disabled>
+                                    <option value="">▼ 選擇同學姓名...</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="mb-2 flex-grow">
+                            <label class="block text-xl font-bold mb-3 text-lime-800">我覺得她...</label>
+                            <div id="tags-container-peer3" class="flex flex-wrap gap-2 mb-3 min-h-[80px] p-4 bg-white rounded-3xl border-2 border-dashed border-gray-400 content-start">
+                                <span class="text-gray-400 text-base py-2 px-1">請選擇優點...</span>
+                            </div>
+                            <div class="flex gap-2 hide-on-capture">
+                                <div class="relative flex-grow">
+                                    <select id="select-comment-peer3" class="block w-full bg-white border-2 border-lime-400 px-4 py-2 rounded-xl text-gray-700 cursor-pointer h-14 text-lg font-bold" disabled>
+                                        <option value="">▼ 選擇正向評語...</option>
+                                    </select>
+                                </div>
+                                <div class="flex-grow flex gap-2">
+                                    <input type="text" id="input-custom-peer3" placeholder="自行輸入..." class="flex-grow border-2 border-lime-400 rounded-xl px-4 h-14 text-lg" disabled>
+                                    <button id="btn-add-peer3" class="bg-lime-400 text-white px-4 rounded-xl font-bold text-3xl h-14 shadow-sm" disabled>+</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+    </div> 
+    <!-- Capture Area End -->
+
+    <!-- 底部按鈕 -->
+    <div class="flex flex-col items-center mt-8 mb-12 hide-on-capture px-4 gap-4 no-print">
+        <div id="error-msg" class="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 rounded shadow-md hidden mb-2">
+            <p class="font-bold">⚠️ 請先在第一區選擇「我是誰」！</p>
+        </div>
+
+        <div class="flex flex-col md:flex-row justify-center gap-4 w-full max-w-3xl">
+            <!-- 圖片下載按鈕 -->
+            <button id="btn-download" class="group relative inline-flex items-center justify-center px-8 py-5 text-xl font-black text-white transition-all duration-200 rounded-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:translate-y-1 hover:shadow-none border-4 border-black bg-gray-400 cursor-not-allowed w-full md:w-auto" disabled>
+                <span id="btn-icon" class="mr-2">🖼️</span>
+                <span id="btn-text">下載圖片 (乾淨無反白)</span>
+            </button>
+
+            <!-- 列印 PDF 按鈕 -->
+            <button id="btn-print" onclick="window.print()" class="group relative inline-flex items-center justify-center px-8 py-5 text-xl font-black text-gray-700 transition-all duration-200 rounded-3xl shadow-[4px_4px_0px_0px_rgba(0,0,0,0.2)] hover:translate-y-1 hover:shadow-none border-4 border-gray-700 bg-white w-full md:w-auto">
+                <span class="mr-2">🖨️</span>
+                <span>列印 / 另存 PDF</span>
+            </button>
+        </div>
+        
+        <div class="text-sm text-gray-500 text-center max-w-md">
+            <p class="font-bold mb-1">💡 小提醒：</p>
+            <p>1. 點擊「下載圖片」會自動幫您解鎖畫面並截圖，請稍等約 1 秒。</p>
+            <p>2. 如果圖片還是有問題，請使用「列印」功能，並在目的地選擇「另存為 PDF」。</p>
+        </div>
+    </div>
+
+    <!-- JavaScript 邏輯 -->
+    <script>
+        const studentNames = [
+            "王翊菲", "朱安妮", "朱柔霏", "何芯妤", "吳佾璇", "吳昭儀", "李安庭", "林子涵", "林采妍", "林恩彤",
+            "林橙芯", "洪千涵", "洪宜葳", "洪婕甯", "徐旋馨", "翁恩然", "馬采婕", "張芷綺", "張韻玄", "曹藜薰",
+            "梁妤睿", "陳芊妤", "陳宣穎", "陳羿蓁", "曾的", "黃禾馨", "黃岑晰", "黃芝穎", "詹昕恬", "廖欣玲",
+            "劉宥萱", "蕭芷晨", "賴昕蕾", "賴菫妍", "賴意嵐", "謝奇昕", "羅立欣"
+        ];
+
+        const commentsDb = [
+            "負責盡職", "誠實守信", "謙虛有禮", "樂觀進取", "熱心助人", "友愛同學", "善解人意", "大方分享", "遵守紀律", "知錯能改",
+            "尊師重道", "服儀整潔", "準時守信", "愛護公物", "主動服務", "做事細心", "處事穩重", "溫和有禮", "正義感強", "配合度高",
+            "合群團結", "積極參與", "勇於承擔", "情緒穩定", "待人真誠", "勤奮好學", "上課專注", "勇於發問", "成績優異", "博學多聞",
+            "字跡工整", "筆記詳盡", "文筆流暢", "口條清晰", "邏輯清晰", "思路敏捷", "見多識廣", "才華洋溢", "多才多藝", "領導力強",
+            "善於溝通", "善於傾聽", "解決問題", "創意十足", "組織力強", "體育表現佳", "美感極佳", "手作能力強", "資訊能力佳", "外語能力佳"
+        ];
+
+        const state = {
+            self: { name: "", comments: [] },
+            peer1: { name: "", comments: [] },
+            peer2: { name: "", comments: [] },
+            peer3: { name: "", comments: [] }
+        };
+
+        const themes = {
+            self: { tagBg: "bg-yellow-300", tagText: "text-yellow-900", border: "border-yellow-400" },
+            peer1: { tagBg: "bg-cyan-300", tagText: "text-cyan-900", border: "border-cyan-400" },
+            peer2: { tagBg: "bg-rose-300", tagText: "text-rose-900", border: "border-rose-400" },
+            peer3: { tagBg: "bg-lime-300", tagText: "text-lime-900", border: "border-lime-400" }
+        };
+
+        document.addEventListener('DOMContentLoaded', () => {
+            initSelects();
+            updateUI();
+        });
+
+        function initSelects() {
+            ['self', 'peer1', 'peer2', 'peer3'].forEach(key => {
+                const select = document.getElementById(`select-student-${key}`);
+                studentNames.forEach((name, idx) => {
+                    const option = document.createElement('option');
+                    option.value = `${idx + 1}號 - ${name}`;
+                    option.text = `${idx + 1}號 - ${name}`;
+                    select.appendChild(option);
+                });
+                
+                select.addEventListener('change', (e) => {
+                    state[key].name = e.target.value;
+                    const display = document.getElementById(`display-name-${key}`);
+                    if(e.target.value) {
+                        display.innerHTML = e.target.value;
+                        display.classList.remove('text-gray-400');
+                    } else {
+                        display.innerHTML = '<span class="text-gray-400 text-lg font-normal">(未選擇)</span>';
+                    }
+                    
+                    if (key === 'self') {
+                        const parts = e.target.value.split(/號\s*-\s*/);
+                        document.getElementById('cover-seat').textContent = parts[0] ? parts[0] : "";
+                        document.getElementById('cover-name').textContent = parts[1] ? parts[1] : "";
+                    }
+                    updateUI();
+                });
+
+                const commentSelect = document.getElementById(`select-comment-${key}`);
+                commentsDb.forEach(comment => {
+                    const option = document.createElement('option');
+                    option.value = comment;
+                    option.text = comment;
+                    commentSelect.appendChild(option);
+                });
+
+                commentSelect.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        addComment(key, e.target.value);
+                        e.target.value = "";
+                    }
+                });
+
+                document.getElementById(`btn-add-${key}`).addEventListener('click', () => {
+                    const input = document.getElementById(`input-custom-${key}`);
+                    if (input.value.trim()) {
+                        addComment(key, input.value.trim());
+                        input.value = "";
+                    }
+                });
+            });
+
+            document.getElementById('btn-download').addEventListener('click', downloadImage);
+        }
+
+        function addComment(section, comment) {
+            if (!state[section].comments.includes(comment)) {
+                state[section].comments.push(comment);
+                renderTags(section);
+                updateUI();
+            }
+        }
+
+        window.removeComment = function(section, comment) {
+            state[section].comments = state[section].comments.filter(c => c !== comment);
+            renderTags(section);
+            updateUI();
+        }
+
+        function renderTags(section) {
+            const container = document.getElementById(`tags-container-${section}`);
+            container.innerHTML = '';
+            
+            if (state[section].comments.length === 0) {
+                container.innerHTML = '<span class="text-gray-400 text-base py-2 px-1 flex items-center empty-hint">請選擇或輸入評語...</span>';
+                return;
+            }
+
+            state[section].comments.forEach(comment => {
+                const tag = document.createElement('span');
+                const theme = themes[section];
+                tag.className = `inline-flex items-center px-4 py-2 rounded-full text-lg font-bold ${theme.tagBg} ${theme.tagText} border-2 ${theme.border} shadow-sm`;
+                tag.innerHTML = `${comment} <button class="ml-2 hover:text-red-600 focus:outline-none hide-on-capture bg-white/50 rounded-full w-6 h-6 flex items-center justify-center pb-0.5" onclick="removeComment('${section}', '${comment}')">×</button>`;
+                container.appendChild(tag);
+            });
+        }
+
+        function updateUI() {
+            const isSelfDone = !!state.self.name;
+            
+            ['peer1', 'peer2', 'peer3'].forEach(key => {
+                const card = document.getElementById(`card-${key}`);
+                const lock = document.getElementById(`lock-${key}`);
+                const inputs = card.querySelectorAll('select, input, button');
+                
+                if (isSelfDone) {
+                    card.classList.remove('grayscale', 'opacity-60');
+                    lock.classList.add('hidden');
+                    inputs.forEach(el => el.disabled = false);
+                } else {
+                    card.classList.add('grayscale', 'opacity-60');
+                    lock.classList.remove('hidden');
+                    inputs.forEach(el => el.disabled = true);
+                }
+            });
+
+            let progress = 0;
+            if (state.self.name && state.self.comments.length) progress += 25;
+            if (state.peer1.name && state.peer1.comments.length) progress += 25;
+            if (state.peer2.name && state.peer2.comments.length) progress += 25;
+            if (state.peer3.name && state.peer3.comments.length) progress += 25;
+            document.getElementById('progress-bar').style.width = `${progress}%`;
+
+            const btn = document.getElementById('btn-download');
+            if (isSelfDone) {
+                btn.classList.remove('bg-gray-400', 'cursor-not-allowed');
+                btn.classList.add('bg-indigo-500', 'hover:bg-indigo-600');
+                btn.disabled = false;
+                document.getElementById('error-msg').classList.add('hidden');
+            } else {
+                btn.classList.add('bg-gray-400', 'cursor-not-allowed');
+                btn.classList.remove('bg-indigo-500', 'hover:bg-indigo-600');
+                btn.disabled = true;
+            }
+        }
+
+        async function downloadImage() {
+            if (!state.self.name) {
+                document.getElementById('error-msg').classList.remove('hidden');
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+                return;
+            }
+
+            const btn = document.getElementById('btn-download');
+            const originalText = document.getElementById('btn-text').innerText;
+            const originalIcon = document.getElementById('btn-icon').innerHTML;
+            
+            btn.disabled = true;
+            document.getElementById('btn-icon').innerHTML = '<div class="loader"></div>';
+            document.getElementById('btn-text').innerText = "生成中...";
+
+            const hiddenElements = document.querySelectorAll('.hide-on-capture');
+            hiddenElements.forEach(el => el.style.display = 'none');
+
+            const captureArea = document.getElementById('capture-area');
+            const mainGrid = document.getElementById('main-grid');
+            const originalWidth = captureArea.style.width;
+            const originalGridClass = mainGrid.className;
+
+            // 1. 強制移除灰階和透明度 class
+            const cards = document.querySelectorAll('[id^="card-"]');
+            const locks = document.querySelectorAll('[id^="lock-"]');
+            
+            cards.forEach(card => {
+                card.classList.remove('grayscale', 'opacity-60', 'opacity-70');
+            });
+            locks.forEach(lock => {
+                lock.classList.add('hidden');
+                lock.style.display = 'none';
+            });
+
+            try {
+                // 2. 強制設定為電腦版寬度
+                captureArea.style.width = '1200px';
+                // 3. 強制設定為 Grid 排版
+                mainGrid.className = 'grid grid-cols-2 gap-8';
+                mainGrid.style.display = 'grid';
+                mainGrid.style.gridTemplateColumns = 'repeat(2, 1fr)';
+
+                window.scrollTo(0,0);
+                await new Promise(r => setTimeout(r, 300));
+                
+                const canvas = await html2canvas(captureArea, {
+                    scale: 2,
+                    backgroundColor: "#FFFDF5",
+                    useCORS: true,
+                    logging: false,
+                    width: 1200, 
+                    windowWidth: 1200,
+                    scrollX: 0,
+                    scrollY: 0
+                });
+
+                const link = document.createElement('a');
+                link.download = `${state.self.name}_自評互評表.png`;
+                link.href = canvas.toDataURL('image/png');
+                link.click();
+            } catch (err) {
+                console.error(err);
+                alert("圖片生成失敗，請改用「列印 / 另存 PDF」功能！");
+            } finally {
+                // 4. 恢復原狀
+                captureArea.style.width = originalWidth;
+                mainGrid.className = originalGridClass;
+                mainGrid.removeAttribute('style');
+
+                locks.forEach(lock => lock.style.display = ''); 
+                hiddenElements.forEach(el => el.style.display = '');
+                updateUI(); // 這一步會自動把還沒填寫的卡片鎖回去
+
+                btn.disabled = false;
+                document.getElementById('btn-icon').innerHTML = originalIcon;
+                document.getElementById('btn-text').innerText = originalText;
+            }
+        }
+    </script>
+</body>
+</html>
